@@ -1,20 +1,15 @@
 """
 authentication.py
 
-Authentication component of the BIM File Security System.
-
-Responsible for verifying that a set of supplied credentials (username,
-password) belongs to a registered user before any access-control,
-logging, or session logic is allowed to run.
+Simple authentication check for the BIM File Security System.
 
 Covers:
     AUTH-001 - Valid credentials are accepted.
     AUTH-002 - Unregistered usernames are rejected.
     AUTH-003 - Registered usernames with the wrong password are rejected.
-    AUTH-004 - Empty / missing (None) credentials are rejected without
-               crashing the system.
-    AUTH-005 - Basic injection-style input is safely rejected and never
-               triggers an internal error or leaks implementation details.
+    AUTH-004 - Empty / missing (None) credentials are rejected, no crash.
+    AUTH-005 - Injection-style input is safely rejected (it's just a
+               dictionary lookup, so it can't be interpreted as code).
 """
 
 USERS = {
@@ -23,7 +18,12 @@ USERS = {
 
 
 def login(username, password):
-    if username in USERS and USERS[username] == password:
-        return True
+    # Reject anything that isn't a plain string (covers None, and stops
+    # a crash on AUTH-004) and reject empty strings too.
+    if not isinstance(username, str) or not isinstance(password, str):
+        return False
+    if not username or not password:
+        return False
 
-    return False
+    return USERS.get(username) == password
+
