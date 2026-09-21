@@ -17,3 +17,19 @@ Covers:
     AC-004 - Client can view, but is denied edit.
     AC-005 - An unregistered/unknown user is denied both view and edit.
 """
+
+# Which actions each role is permitted to perform.
+ROLE_PERMISSIONS = {
+    "Architect": {"view", "edit"},
+    "Engineer": {"view", "edit"},
+    "Contractor": {"view"},
+    "Client": {"view"},
+}
+
+USER_ROLES = {
+    "architect": "Architect",
+    "engineer": "Engineer",
+    "contractor": "Contractor",
+    "client": "Client",
+}
+
