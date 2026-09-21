@@ -33,3 +33,26 @@ USER_ROLES = {
     "client": "Client",
 }
 
+def check_access(username, action):
+    """
+    Check whether a user is permitted to perform an action.
+ 
+    Returns True only when the user is registered with a role, and that
+    role is permitted to perform the given action. Returns False for
+    every other case - unknown user, unknown/invalid action, or bad
+    input (None, wrong type, etc.) - it never raises.
+ 
+    This is the single gate every file operation must go through: a
+    denied result here means the action must not happen, not just be
+    hidden from a UI.
+    """
+    
+    if not isinstance(username, str) or not isinstance(action, str):
+        return False
+ 
+    role = USER_ROLES.get(username)
+    if role is None:
+        # Unregistered/unauthorised user - always denied.
+        return False
+ 
+    return action in ROLE_PERMISSIONS.get(role, set())
