@@ -18,6 +18,8 @@ USERS = {
 
 
 def login(username, password):
+    # Reject anything that isn't a plain string (covers None, and stops
+    # a crash on AUTH-004) and reject empty strings too.
     if not isinstance(username, str) or not isinstance(password, str):
         return False
     if not username or not password:
