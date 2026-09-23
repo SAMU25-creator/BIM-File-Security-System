@@ -11,3 +11,16 @@ Covers:
     AUTH-005 - Injection-style input is safely rejected (it's just a
                dictionary lookup, so it can't be interpreted as code).
 """
+
+USERS = {
+    "valid_user": "correct_password"
+}
+
+
+def login(username, password):
+    if not isinstance(username, str) or not isinstance(password, str):
+        return False
+    if not username or not password:
+        return False
+
+    return USERS.get(username) == password
