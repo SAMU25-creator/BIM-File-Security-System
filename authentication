@@ -1,0 +1,13 @@
+"""
+authentication.py
+
+Simple authentication check for the BIM File Security System.
+
+Covers:
+    AUTH-001 - Valid credentials are accepted.
+    AUTH-002 - Unregistered usernames are rejected.
+    AUTH-003 - Registered usernames with the wrong password are rejected.
+    AUTH-004 - Empty / missing (None) credentials are rejected, no crash.
+    AUTH-005 - Injection-style input is safely rejected (it's just a
+               dictionary lookup, so it can't be interpreted as code).
+"""
