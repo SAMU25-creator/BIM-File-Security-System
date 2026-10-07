@@ -27,3 +27,27 @@ How the other modules are expected to use it:
     authentication.login()     calls log_login(username, succeeded)
     access_control.access_file() calls log_access(username, action, filename, allowed)
 """
+import time
+
+RESULT_SUCCESS = "success"
+RESULT_FAILURE = "failure"
+RESULT_ALLOWED = "allowed"
+RESULT_DENIED = "denied"
+
+# In-memory log, oldest entry first.
+_entries = []
+
+
+def log_event(username, action, file, result):
+    """Write one log entry. Missing (None) values are stored as given, never raise."""
+    _entries.append(
+        {
+            "username": username,
+            "action": action,
+            "file": file,
+            "timestamp": time.time(),
+            "result": result,
+        }
+    )
+
+
