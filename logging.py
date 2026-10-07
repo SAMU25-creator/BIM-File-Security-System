@@ -51,3 +51,13 @@ def log_event(username, action, file, result):
     )
 
 
+def log_login(username, succeeded):
+    """Log a login attempt as a success or a failure."""
+    log_event(username, "login", None, RESULT_SUCCESS if succeeded else RESULT_FAILURE)
+
+
+def log_access(username, action, filename, allowed):
+    """Log a file access attempt as allowed or denied."""
+    log_event(username, action, filename, RESULT_ALLOWED if allowed else RESULT_DENIED)
+
+
