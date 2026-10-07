@@ -61,3 +61,11 @@ def log_access(username, action, filename, allowed):
     log_event(username, action, filename, RESULT_ALLOWED if allowed else RESULT_DENIED)
 
 
+def get_log_entries():
+    """Return a copy of the log, so callers cannot change it by accident."""
+    return [dict(entry) for entry in _entries]
+
+
+def clear_log():
+    """Empty the log."""
+    _entries.clear()
