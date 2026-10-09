@@ -20,3 +20,15 @@ Fernet gives us two things for free: the same data encrypts differently every
 time, and a wrong key or a changed file is detected instead of giving garbage.
 """
 
+import os
+
+from cryptography.fernet import Fernet, InvalidToken
+
+KEY_ENV_VAR = "BIM_ENCRYPTION_KEY"
+STORAGE_ENV_VAR = "BIM_STORAGE_DIR"
+
+
+class EncryptionError(Exception):
+    """Raised for every encryption, decryption, or file failure."""
+
+
