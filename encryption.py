@@ -52,3 +52,25 @@ def _get_cipher():
         raise EncryptionError("The encryption key is invalid.") from None
 
 
+# --- Encrypt and decrypt bytes ---
+
+def encrypt_data(data):
+    """Encrypt bytes and return the ciphertext."""
+    if not isinstance(data, bytes):
+        raise EncryptionError("Data must be bytes.")
+
+    return _get_cipher().encrypt(data)
+
+
+def decrypt_data(token):
+    """Decrypt ciphertext and return the original bytes."""
+    if not isinstance(token, bytes):
+        raise EncryptionError("Encrypted data must be bytes.")
+
+    try:
+        return _get_cipher().decrypt(token)
+    except InvalidToken:
+        # Wrong key, changed data, cut-off data, or data that was never encrypted.
+        raise EncryptionError("Could not decrypt: wrong key or damaged data.") from None
+
+
