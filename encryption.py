@@ -1,11 +1,7 @@
 """
 encryption.py
 
-Encrypts BIM file data before it is written to disk, and decrypts it again
-when it is read back.
-
-Interface (matches tests/pytest/test_encryption.py and
-tests/Unit_test/test_encryption.py):
+Encrypts BIM file data before it is saved, and decrypts it when it is read.
 
     generate_key()              -> new key (str)
     encrypt_data(data: bytes)   -> ciphertext (bytes)
@@ -14,29 +10,13 @@ tests/Unit_test/test_encryption.py):
     read_file(name)             -> original bytes
     EncryptionError             -> raised for every failure
 
-Configuration (read every time a function is called, never cached):
+Settings are read from environment variables each time a function is called:
 
-    BIM_ENCRYPTION_KEY   the key, as produced by generate_key()
-    BIM_STORAGE_DIR      the folder encrypted files are stored in
+    BIM_ENCRYPTION_KEY   the key (create one with generate_key())
+    BIM_STORAGE_DIR      the folder where encrypted files are saved
 
-How it works:
-
-    Fernet (from the "cryptography" package) is used for the encryption.
-    It encrypts with AES-128 and signs the result with HMAC-SHA256, so:
-      - the same data encrypts differently every time (random IV),
-      - a wrong key, a changed byte, or a cut-off file is detected and
-        rejected instead of returning garbage.
-
-    Install the dependency with:   pip install cryptography
-
-Safety rules:
-
-    - Every failure raises EncryptionError. Messages never contain the key
-      or the file content.
-    - File names must be plain names. Anything that could point outside the
-      storage folder (../, /, \\, ., ..) is rejected.
-    - Files are written to a temporary file first and then moved into place,
-      so a failed store never leaves a half-written or plaintext file.
-    - Stored files are readable only by the owner (mode 0600).
+Uses Fernet from the "cryptography" package (pip install cryptography).
+Fernet gives us two things for free: the same data encrypts differently every
+time, and a wrong key or a changed file is detected instead of giving garbage.
 """
 
