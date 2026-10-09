@@ -74,3 +74,20 @@ def decrypt_data(token):
         raise EncryptionError("Could not decrypt: wrong key or damaged data.") from None
 
 
+# --- Store and read files ---
+
+def _check_filename(name):
+    """Allow plain file names only, so a file can never be saved outside the storage folder."""
+    if not isinstance(name, str) or not name.strip():
+        raise EncryptionError("The file name must be a non-empty string.")
+    if name in (".", "..") or any(char in name for char in "/\\\0"):
+        raise EncryptionError("The file name is not allowed.")
+
+
+def _get_storage_folder():
+    folder = os.environ.get(STORAGE_ENV_VAR)
+    if not folder:
+        raise EncryptionError("No storage folder is set.")
+    return folder
+
+
