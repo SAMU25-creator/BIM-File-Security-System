@@ -107,3 +107,16 @@ def store_file(name, data):
 
     return path
 
+
+def read_file(name):
+    """Read <storage folder>/<name> and return the decrypted bytes."""
+    _check_filename(name)
+    path = os.path.join(_get_storage_folder(), name)
+
+    try:
+        with open(path, "rb") as file:
+            token = file.read()
+    except OSError:
+        raise EncryptionError("Could not read the file.") from None
+
+    return decrypt_data(token)
