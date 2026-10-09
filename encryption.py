@@ -91,3 +91,19 @@ def _get_storage_folder():
     return folder
 
 
+def store_file(name, data):
+    """Encrypt data and save it as <storage folder>/<name>. Returns the path."""
+    _check_filename(name)
+    token = encrypt_data(data)  # encrypt first, so a failure writes nothing
+    folder = _get_storage_folder()
+    path = os.path.join(folder, name)
+
+    try:
+        os.makedirs(folder, exist_ok=True)
+        with open(path, "wb") as file:
+            file.write(token)
+    except OSError:
+        raise EncryptionError("Could not save the file.") from None
+
+    return path
+
