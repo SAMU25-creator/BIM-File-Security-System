@@ -32,3 +32,23 @@ class EncryptionError(Exception):
     """Raised for every encryption, decryption, or file failure."""
 
 
+# --- Key ---
+
+def generate_key():
+    """Return a new random key as a string."""
+    return Fernet.generate_key().decode()
+
+
+def _get_cipher():
+    """Build the Fernet cipher from the key in the environment."""
+    key = os.environ.get(KEY_ENV_VAR)
+    if not key:
+        raise EncryptionError("No encryption key is set.")
+
+    try:
+        return Fernet(key.encode())
+    except ValueError:
+        # The message never includes the key.
+        raise EncryptionError("The encryption key is invalid.") from None
+
+
