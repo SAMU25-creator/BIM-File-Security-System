@@ -4,7 +4,7 @@ A Python-based role-based access control (RBAC) system for securing Building Inf
 
 The system is designed to protect sensitive construction project information such as architectural drawings, engineering models, site plans, and related project files. Different user roles receive different levels of access based on their responsibilities.
 
-The project focuses on authentication, role-based access control, access logging, encryption, and session security.
+The project covers five areas: authentication, role-based access control, access logging, encryption, and session security.
 
 ## Access Model
 
@@ -16,16 +16,26 @@ The project focuses on authentication, role-based access control, access logging
 | Client            | View        |
 | Unauthorised user | Denied      |
 
-Every access attempt — whether successful or denied — must be recorded with the user, action, file, result, and timestamp.
+Every access attempt, whether successful or denied, must be recorded with the user, action, file, result, and timestamp.
 
 ## Features
 
-* **Authentication** — users provide credentials and only registered users with correct credentials are accepted.
-* **Role-Based Access Control** — file actions are checked against the user's assigned role.
-* **Access Logging** — successful and denied access attempts are recorded for auditing.
-* **Encryption** — sensitive BIM files and protected data are encrypted where required.
-* **Session Security** — sessions expire and cannot be reused after logout.
-* **Terminal-Based Execution** — system operations and results can be executed and viewed from the terminal.
+* **Authentication**: users provide credentials and only registered users with correct credentials are accepted.
+* **Role-Based Access Control**: file actions are checked against the user's assigned role.
+* **Access Logging**: successful and denied attempts are recorded for auditing.
+* **Encryption**: BIM files are encrypted before they are saved and decrypted when they are read.
+* **Session Security**: sessions expire after inactivity and cannot be reused after logout.
+* **Terminal-Based Execution**: components are plain Python modules that can be run and checked from the terminal.
+
+## Current Status
+
+| Component        | Module                | Status                                                            |
+| ---------------- | --------------------- | ----------------------------------------------------------------- |
+| Authentication   | `authentication.py`   | Implemented                                                       |
+| Access Control   | `access_control.py`   | Implemented (`check_access`)                                      |
+| Access Logging   | `audit_log.py`        | Log module implemented; login and file access do not call it yet  |
+| Encryption       | `encryption.py`       | Implemented                                                       |
+| Session Security | `session_security.py` | Implemented                                                       |
 
 ## Getting Started
 
@@ -33,6 +43,7 @@ Every access attempt — whether successful or denied — must be recorded with 
 
 * Python 3.11+
 * Git
+* The `cryptography` package (used by `encryption.py`)
 
 Clone the repository:
 
@@ -61,41 +72,100 @@ Activate the environment.
 source .venv/bin/activate
 ```
 
-Install the project dependencies:
+Install the dependency:
 
 ```bash
-pip install -r requirements.txt
+pip install cryptography
 ```
 
-If environment variables are required, create a `.env` file from the provided example:
+### Environment variables
+
+Encryption reads two environment variables every time it is used:
+
+| Variable             | Purpose                                         |
+| -------------------- | ----------------------------------------------- |
+| `BIM_ENCRYPTION_KEY` | The encryption key                              |
+| `BIM_STORAGE_DIR`    | The folder where encrypted files are saved      |
+
+Create a key:
 
 ```bash
-cp .env.example .env
+python -c "from encryption import generate_key; print(generate_key())"
 ```
 
-On Windows PowerShell:
+Set the variables.
+
+**Windows PowerShell:**
 
 ```powershell
-Copy-Item .env.example .env
+$env:BIM_ENCRYPTION_KEY = "<the key from above>"
+$env:BIM_STORAGE_DIR = ".\storage"
 ```
+
+**Linux/macOS:**
+
+```bash
+export BIM_ENCRYPTION_KEY="<the key from above>"
+export BIM_STORAGE_DIR="./storage"
+```
+
+Keep the key private and never commit it to Git. Files encrypted with one key cannot be read with another.
 
 ## Running the System
 
-The system is designed to run through Python modules and terminal commands rather than through a web application.
+The system runs through Python modules and terminal commands rather than a web application. Start Python in the project folder and import the component you want to check.
 
-Individual system components can be executed and tested from the terminal.
+**Authentication**
 
-For example:
+```python
+from authentication import login
 
-```bash
-python authentication.py
+login("valid_user", "correct_password")   # True
+login("valid_user", "wrong_password")     # False
 ```
 
-As additional security components are implemented, corresponding modules and commands will be documented here.
+**Access control**
+
+```python
+from access_control import check_access
+
+check_access("architect", "edit")         # True
+check_access("contractor", "edit")        # False
+check_access("unknown_user", "view")      # False
+```
+
+**Sessions**
+
+```python
+from session_security import create_session, validate_session, logout
+
+token = create_session("architect")
+validate_session(token)                   # True
+logout(token)
+validate_session(token)                   # False
+```
+
+**Encryption** (needs the environment variables above)
+
+```python
+from encryption import store_file, read_file
+
+store_file("plan.bim", b"floor plan data")   # saved encrypted on disk
+read_file("plan.bim")                        # b"floor plan data"
+```
+
+**Logging**
+
+```python
+from audit_log import log_access, get_log_entries
+
+log_access("contractor", "edit", "plan.bim", False)
+get_log_entries()                         # one entry, result "denied"
+```
 
 ## Sample Users
 
-The system will contain test users representing the supported roles:
+Access control recognises these users:
 
 | Username   | Role       |
 | ---------- | ---------- |
@@ -104,24 +174,27 @@ The system will contain test users representing the supported roles:
 | contractor | Contractor |
 | client     | Client     |
 
-Unauthorised users must not be granted access.
+Any other username is treated as an unauthorised user and is denied.
 
-Sample user data will be maintained separately from the application logic.
+Authentication currently has a single test account for login checks:
+
+| Username     | Password           |
+| ------------ | ------------------ |
+| `valid_user` | `correct_password` |
+
+This account is for testing only. Real credentials must never be stored in the source code.
 
 ## Project Structure
 
 ```text
 BIM-File-Security-System/
 │
-├── authentication.py       Authentication logic
-├── access_control.py       Role and permission logic
-├── logging_system.py       Access logging
-├── encryption.py           Encryption functionality
-├── session.py              Session management
-├── test_data/              Sample users and BIM file data
-├── requirements/           Project requirements
-├── README.md               Project documentation
-└── .gitignore              Git exclusions
+├── authentication.py       Login check
+├── access_control.py       Roles, permissions and check_access()
+├── audit_log.py            Access log (log_event, get_log_entries, clear_log)
+├── encryption.py           Encrypt, decrypt, store and read files
+├── session_security.py     Session creation, expiry and logout
+└── README.md               Project documentation
 ```
 
 The structure may expand as additional functionality is implemented.
@@ -130,38 +203,66 @@ The structure may expand as additional functionality is implemented.
 
 The separate QA repository independently verifies the behaviour of the Development system.
 
-| Area                | Expected Behaviour                                            |
-| ------------------- | ------------------------------------------------------------- |
-| Authentication      | Only registered users with correct credentials can log in     |
-| Access Control      | Users can only perform actions permitted by their role        |
-| Unauthorised Access | Unregistered or invalid users are denied                      |
-| Access Logging      | Every access attempt is recorded                              |
-| Encryption          | Protected BIM files and sensitive data are securely encrypted |
-| Session Security    | Sessions expire and cannot be reused after logout             |
+| Area                | Expected Behaviour                                                |
+| ------------------- | ----------------------------------------------------------------- |
+| Authentication      | Only registered users with correct credentials can log in         |
+| Access Control      | Users can only perform actions permitted by their role            |
+| Unauthorised Access | Unregistered or invalid users are denied                          |
+| Access Logging      | Every login and file access attempt is recorded                   |
+| Encryption          | Stored files are encrypted, and wrong keys or changes are rejected |
+| Session Security    | Sessions expire and cannot be reused after logout                 |
 
-## Authentication Requirements
+## Requirements
 
-The authentication component must satisfy the following requirements:
+Every requirement has a unique ID so it can be linked to test cases.
 
-### AUTH-001 — Valid Credentials
+### Authentication
 
-A registered user providing the correct password must be authenticated successfully.
+| ID       | Requirement                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| AUTH-001 | A registered user providing the correct password must be authenticated successfully.                                                |
+| AUTH-002 | An unregistered username must be rejected.                                                                                          |
+| AUTH-003 | A registered username with an incorrect password must be rejected.                                                                  |
+| AUTH-004 | Empty or missing credentials must be rejected without causing the system to crash.                                                  |
+| AUTH-005 | Basic injection-style input in the username or password must be safely rejected, without exposing internal errors or implementation details. |
 
-### AUTH-002 — Invalid Username
+### Access Control
 
-An unregistered username must be rejected.
+| ID     | Requirement                                                                                         |
+| ------ | --------------------------------------------------------------------------------------------------- |
+| AC-001 | Architects can view and edit BIM files.                                                             |
+| AC-002 | Engineers can view and edit BIM files.                                                              |
+| AC-003 | Contractors can view BIM files but cannot edit them.                                                |
+| AC-004 | Clients can view BIM files but cannot edit them.                                                    |
+| AC-005 | Unregistered users, missing usernames, missing actions and unrecognised actions must be denied.     |
 
-### AUTH-003 — Incorrect Password
+### Logging
 
-A registered username with an incorrect password must be rejected.
+| ID      | Requirement                                                              |
+| ------- | ------------------------------------------------------------------------ |
+| LOG-001 | Every login attempt, successful or failed, creates a log entry.          |
+| LOG-002 | Every file access attempt, allowed or denied, creates a log entry.       |
+| LOG-003 | Log entries contain who, what action, which file, and when.             |
+| LOG-004 | Denied actions are logged as denied, not silently dropped.               |
 
-### AUTH-004 — Empty or Missing Credentials
+### Encryption
 
-Empty or missing credentials must be rejected without causing the system to crash.
+| ID      | Requirement                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------ |
+| ENC-001 | Files are stored encrypted. The file on disk must not contain the original content.                          |
+| ENC-002 | A stored file must decrypt back to exactly the original content.                                             |
+| ENC-003 | A wrong key, changed data, or a cut-off file must be rejected, and errors must not reveal the key or content. |
+| ENC-004 | Bad input (wrong data type, unsafe file names, missing file, missing or invalid key) must be rejected safely. |
 
-### AUTH-005 — Injection-Safe Authentication
+### Session Security
 
-Basic injection-style input in the username or password fields must be safely rejected without exposing internal errors or sensitive implementation details.
+| ID       | Requirement                                                                  |
+| -------- | ---------------------------------------------------------------------------- |
+| SESS-001 | A created session is valid and has a unique token.                           |
+| SESS-002 | Logging out ends the session, and the old token stops working.               |
+| SESS-003 | Sessions expire after 30 minutes of inactivity.                              |
+| SESS-004 | Expired or logged-out tokens are always rejected when reused.                |
+| SESS-005 | Missing, unknown or malformed tokens are rejected without crashing.          |
 
 ## QA Integration
 
@@ -197,17 +298,15 @@ The QA repository must not duplicate the Development implementation simply to ma
 
 ## Traceability
 
-Requirements are assigned unique IDs so that each requirement can be linked to one or more test cases.
+Each QA test identifies the requirement it verifies, so every requirement can be linked to one or more test cases.
 
-Current requirement groups include:
-
-* `AUTH-001` to `AUTH-005` — Authentication
-* `AC-001` onward — Access Control
-* `LOG-001` onward — Logging
-* `ENC-001` onward — Encryption
-* `SESS-001` onward — Session Security
-
-Each QA test should identify the requirement it verifies.
+| Prefix     | Area             | Range                        |
+| ---------- | ---------------- | ---------------------------- |
+| `AUTH-`    | Authentication   | `AUTH-001` to `AUTH-005`     |
+| `AC-`      | Access Control   | `AC-001` to `AC-005`         |
+| `LOG-`     | Logging          | `LOG-001` to `LOG-004`       |
+| `ENC-`     | Encryption       | `ENC-001` to `ENC-004`       |
+| `SESS-`    | Session Security | `SESS-001` to `SESS-005`     |
 
 ## Development and QA Workflow
 
