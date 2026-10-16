@@ -12,17 +12,36 @@ Covers:
                dictionary lookup, so it can't be interpreted as code).
 """
 
+
+"""
+authentication.py
+
+Simple authentication check for the BIM File Security System.
+"""
+
+from audit_log import log_login
+
 USERS = {
     "valid_user": "correct_password"
 }
 
 
 def login(username, password):
-    # Reject anything that isn't a plain string (covers None, and stops
-    # a crash on AUTH-004) and reject empty strings too.
+    """Validate credentials and log every login attempt."""
+
+    # Reject invalid input safely.
     if not isinstance(username, str) or not isinstance(password, str):
-        return False
-    if not username or not password:
+        log_login(username, False)
         return False
 
-    return USERS.get(username) == password
+    if not username or not password:
+        log_login(username, False)
+        return False
+
+    # Check the credentials.
+    succeeded = USERS.get(username) == password
+
+    # Record the outcome without ever logging the password.
+    log_login(username, succeeded)
+
+    return succeeded

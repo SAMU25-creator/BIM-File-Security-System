@@ -18,6 +18,8 @@ Covers:
     AC-005 - An unregistered/unknown user is denied both view and edit.
 """
 
+from audit_log import log_access
+
 # Which actions each role is permitted to perform.
 ROLE_PERMISSIONS = {
     "Architect": {"view", "edit"},
@@ -56,3 +58,12 @@ def check_access(username, action):
         return False
  
     return action in ROLE_PERMISSIONS.get(role, set())
+
+def access_file(username, action, filename):
+    """
+    Check file access and record the result in the audit log.
+    Return True if access is allowed, otherwise False.
+    """
+    allowed = check_access(username, action)
+    log_access(username, action, filename, allowed)
+    return allowed
