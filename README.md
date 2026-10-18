@@ -16,26 +16,26 @@ The project covers five areas: authentication, role-based access control, access
 | Client            | View        |
 | Unauthorised user | Denied      |
 
-Every access attempt, whether successful or denied, must be recorded with the user, action, file, result, and timestamp.
+Every access attempt, whether successful or denied, is recorded with the user, action, file, result, and timestamp.
 
 ## Features
 
-* **Authentication**: users provide credentials and only registered users with correct credentials are accepted.
-* **Role-Based Access Control**: file actions are checked against the user's assigned role.
-* **Access Logging**: successful and denied attempts are recorded for auditing.
+* **Authentication**: users provide credentials and only registered users with correct credentials are accepted. Every login attempt is logged.
+* **Role-Based Access Control**: file actions are checked against the user's assigned role. Every file access attempt is logged.
+* **Access Logging**: successful and denied attempts are recorded for auditing. Passwords are never logged.
 * **Encryption**: BIM files are encrypted before they are saved and decrypted when they are read.
 * **Session Security**: sessions expire after inactivity and cannot be reused after logout.
 * **Terminal-Based Execution**: components are plain Python modules that can be run and checked from the terminal.
 
 ## Current Status
 
-| Component        | Module                | Status                                                            |
-| ---------------- | --------------------- | ----------------------------------------------------------------- |
-| Authentication   | `authentication.py`   | Implemented                                                       |
-| Access Control   | `access_control.py`   | Implemented (`check_access`)                                      |
-| Access Logging   | `audit_log.py`        | Log module implemented; login and file access do not call it yet  |
-| Encryption       | `encryption.py`       | Implemented                                                       |
-| Session Security | `session_security.py` | Implemented                                                       |
+| Component        | Module                | Status                                                              |
+| ---------------- | --------------------- | ------------------------------------------------------------------- |
+| Authentication   | `authentication.py`   | Implemented (`login`, logs every attempt)                           |
+| Access Control   | `access_control.py`   | Implemented (`check_access`, `access_file` which logs every attempt) |
+| Access Logging   | `audit_log.py`        | Implemented (in-memory log)                                         |
+| Encryption       | `encryption.py`       | Implemented (`store_file`, `read_file`)                             |
+| Session Security | `session_security.py` | Implemented                                                         |
 
 ## Getting Started
 
@@ -82,10 +82,10 @@ pip install cryptography
 
 Encryption reads two environment variables every time it is used:
 
-| Variable             | Purpose                                         |
-| -------------------- | ----------------------------------------------- |
-| `BIM_ENCRYPTION_KEY` | The encryption key                              |
-| `BIM_STORAGE_DIR`    | The folder where encrypted files are saved      |
+| Variable             | Purpose                                    |
+| -------------------- | ------------------------------------------ |
+| `BIM_ENCRYPTION_KEY` | The encryption key                         |
+| `BIM_STORAGE_DIR`    | The folder where encrypted files are saved |
 
 Create a key:
 
@@ -122,16 +122,20 @@ from authentication import login
 
 login("valid_user", "correct_password")   # True
 login("valid_user", "wrong_password")     # False
+login(None, None)                         # False (no crash)
 ```
 
 **Access control**
 
 ```python
-from access_control import check_access
+from access_control import check_access, access_file
 
 check_access("architect", "edit")         # True
 check_access("contractor", "edit")        # False
 check_access("unknown_user", "view")      # False
+
+# access_file() does the same check and also writes a log entry
+access_file("contractor", "edit", "plan.bim")   # False, logged as denied
 ```
 
 **Sessions**
@@ -157,11 +161,24 @@ read_file("plan.bim")                        # b"floor plan data"
 **Logging**
 
 ```python
-from audit_log import log_access, get_log_entries
+from audit_log import get_log_entries, clear_log
 
-log_access("contractor", "edit", "plan.bim", False)
-get_log_entries()                         # one entry, result "denied"
+clear_log()
+access_file("contractor", "edit", "plan.bim")
+get_log_entries()
+# [{'username': 'contractor', 'action': 'edit', 'file': 'plan.bim',
+#   'timestamp': ..., 'result': 'denied'}]
 ```
+
+Each log entry has these fields:
+
+| Field       | Meaning                                                              |
+| ----------- | -------------------------------------------------------------------- |
+| `username`  | Who made the attempt                                                 |
+| `action`    | What they tried to do (`login`, `view`, `edit`, ...)                 |
+| `file`      | Which file was involved (`None` for a login)                         |
+| `timestamp` | When it happened (seconds since the epoch)                           |
+| `result`    | `success` / `failure` for logins, `allowed` / `denied` for file access |
 
 ## Sample Users
 
@@ -189,9 +206,9 @@ This account is for testing only. Real credentials must never be stored in the s
 ```text
 BIM-File-Security-System/
 │
-├── authentication.py       Login check
-├── access_control.py       Roles, permissions and check_access()
-├── audit_log.py            Access log (log_event, get_log_entries, clear_log)
+├── authentication.py       Login check (logs every attempt)
+├── access_control.py       Roles, permissions, check_access() and access_file()
+├── audit_log.py            Access log (log_event, log_login, log_access, get_log_entries, clear_log)
 ├── encryption.py           Encrypt, decrypt, store and read files
 ├── session_security.py     Session creation, expiry and logout
 └── README.md               Project documentation
@@ -199,18 +216,25 @@ BIM-File-Security-System/
 
 The structure may expand as additional functionality is implemented.
 
+## Known Limitations
+
+* Logging is kept in memory, so the log is lost when the program stops.
+* The user list and the test account are stored in the source code, for testing only.
+* `login()` does not create a session yet, and file access does not check for a valid session. The components work on their own and are not yet connected into one flow.
+* `store_file()` and `read_file()` do not check the user's role. Role checks happen in `check_access()` / `access_file()`.
+
 ## What is Tested
 
 The separate QA repository independently verifies the behaviour of the Development system.
 
-| Area                | Expected Behaviour                                                |
-| ------------------- | ----------------------------------------------------------------- |
-| Authentication      | Only registered users with correct credentials can log in         |
-| Access Control      | Users can only perform actions permitted by their role            |
-| Unauthorised Access | Unregistered or invalid users are denied                          |
-| Access Logging      | Every login and file access attempt is recorded                   |
+| Area                | Expected Behaviour                                                 |
+| ------------------- | ------------------------------------------------------------------ |
+| Authentication      | Only registered users with correct credentials can log in          |
+| Access Control      | Users can only perform actions permitted by their role             |
+| Unauthorised Access | Unregistered or invalid users are denied                           |
+| Access Logging      | Every login and file access attempt is recorded                    |
 | Encryption          | Stored files are encrypted, and wrong keys or changes are rejected |
-| Session Security    | Sessions expire and cannot be reused after logout                 |
+| Session Security    | Sessions expire and cannot be reused after logout                  |
 
 ## Requirements
 
@@ -218,51 +242,51 @@ Every requirement has a unique ID so it can be linked to test cases.
 
 ### Authentication
 
-| ID       | Requirement                                                                                                                         |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| AUTH-001 | A registered user providing the correct password must be authenticated successfully.                                                |
-| AUTH-002 | An unregistered username must be rejected.                                                                                          |
-| AUTH-003 | A registered username with an incorrect password must be rejected.                                                                  |
-| AUTH-004 | Empty or missing credentials must be rejected without causing the system to crash.                                                  |
+| ID       | Requirement                                                                                                                                  |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| AUTH-001 | A registered user providing the correct password must be authenticated successfully.                                                         |
+| AUTH-002 | An unregistered username must be rejected.                                                                                                   |
+| AUTH-003 | A registered username with an incorrect password must be rejected.                                                                           |
+| AUTH-004 | Empty or missing credentials must be rejected without causing the system to crash.                                                           |
 | AUTH-005 | Basic injection-style input in the username or password must be safely rejected, without exposing internal errors or implementation details. |
 
 ### Access Control
 
-| ID     | Requirement                                                                                         |
-| ------ | --------------------------------------------------------------------------------------------------- |
-| AC-001 | Architects can view and edit BIM files.                                                             |
-| AC-002 | Engineers can view and edit BIM files.                                                              |
-| AC-003 | Contractors can view BIM files but cannot edit them.                                                |
-| AC-004 | Clients can view BIM files but cannot edit them.                                                    |
-| AC-005 | Unregistered users, missing usernames, missing actions and unrecognised actions must be denied.     |
+| ID     | Requirement                                                                                     |
+| ------ | ----------------------------------------------------------------------------------------------- |
+| AC-001 | Architects can view and edit BIM files.                                                         |
+| AC-002 | Engineers can view and edit BIM files.                                                          |
+| AC-003 | Contractors can view BIM files but cannot edit them.                                            |
+| AC-004 | Clients can view BIM files but cannot edit them.                                                |
+| AC-005 | Unregistered users, missing usernames, missing actions and unrecognised actions must be denied. |
 
 ### Logging
 
-| ID      | Requirement                                                              |
-| ------- | ------------------------------------------------------------------------ |
-| LOG-001 | Every login attempt, successful or failed, creates a log entry.          |
-| LOG-002 | Every file access attempt, allowed or denied, creates a log entry.       |
-| LOG-003 | Log entries contain who, what action, which file, and when.             |
-| LOG-004 | Denied actions are logged as denied, not silently dropped.               |
+| ID      | Requirement                                                        |
+| ------- | ------------------------------------------------------------------ |
+| LOG-001 | Every login attempt, successful or failed, creates a log entry.    |
+| LOG-002 | Every file access attempt, allowed or denied, creates a log entry. |
+| LOG-003 | Log entries contain who, what action, which file, and when.        |
+| LOG-004 | Denied actions are logged as denied, not silently dropped.         |
 
 ### Encryption
 
-| ID      | Requirement                                                                                                  |
-| ------- | ------------------------------------------------------------------------------------------------------------ |
-| ENC-001 | Files are stored encrypted. The file on disk must not contain the original content.                          |
-| ENC-002 | A stored file must decrypt back to exactly the original content.                                             |
+| ID      | Requirement                                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------------------------- |
+| ENC-001 | Files are stored encrypted. The file on disk must not contain the original content.                           |
+| ENC-002 | A stored file must decrypt back to exactly the original content.                                              |
 | ENC-003 | A wrong key, changed data, or a cut-off file must be rejected, and errors must not reveal the key or content. |
 | ENC-004 | Bad input (wrong data type, unsafe file names, missing file, missing or invalid key) must be rejected safely. |
 
 ### Session Security
 
-| ID       | Requirement                                                                  |
-| -------- | ---------------------------------------------------------------------------- |
-| SESS-001 | A created session is valid and has a unique token.                           |
-| SESS-002 | Logging out ends the session, and the old token stops working.               |
-| SESS-003 | Sessions expire after 30 minutes of inactivity.                              |
-| SESS-004 | Expired or logged-out tokens are always rejected when reused.                |
-| SESS-005 | Missing, unknown or malformed tokens are rejected without crashing.          |
+| ID       | Requirement                                                         |
+| -------- | ------------------------------------------------------------------- |
+| SESS-001 | A created session is valid and has a unique token.                  |
+| SESS-002 | Logging out ends the session, and the old token stops working.      |
+| SESS-003 | Sessions expire after 30 minutes of inactivity.                     |
+| SESS-004 | Expired or logged-out tokens are always rejected when reused.       |
+| SESS-005 | Missing, unknown or malformed tokens are rejected without crashing. |
 
 ## QA Integration
 
@@ -300,13 +324,13 @@ The QA repository must not duplicate the Development implementation simply to ma
 
 Each QA test identifies the requirement it verifies, so every requirement can be linked to one or more test cases.
 
-| Prefix     | Area             | Range                        |
-| ---------- | ---------------- | ---------------------------- |
-| `AUTH-`    | Authentication   | `AUTH-001` to `AUTH-005`     |
-| `AC-`      | Access Control   | `AC-001` to `AC-005`         |
-| `LOG-`     | Logging          | `LOG-001` to `LOG-004`       |
-| `ENC-`     | Encryption       | `ENC-001` to `ENC-004`       |
-| `SESS-`    | Session Security | `SESS-001` to `SESS-005`     |
+| Prefix  | Area             | Range                    |
+| ------- | ---------------- | ------------------------ |
+| `AUTH-` | Authentication   | `AUTH-001` to `AUTH-005` |
+| `AC-`   | Access Control   | `AC-001` to `AC-005`     |
+| `LOG-`  | Logging          | `LOG-001` to `LOG-004`   |
+| `ENC-`  | Encryption       | `ENC-001` to `ENC-004`   |
+| `SESS-` | Session Security | `SESS-001` to `SESS-005` |
 
 ## Development and QA Workflow
 
